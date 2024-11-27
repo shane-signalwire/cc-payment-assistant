@@ -35,7 +35,7 @@ class AIPaymentSWML:
     - First and last name
     - Account number
     - CVV (3 digits)
-    - Card expiration date (MM/YY format)
+    - Card expiration date (MM/YYYY format)
 
     # Conversation Flow
     1. Greeting
