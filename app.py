@@ -6,15 +6,15 @@ from flask import Flask, redirect, render_template, request, url_for
 import sqlite3
 import os
 
-ngrok_tunnel_url = os.environ['NGROK_TUNNEL_URL']
-if not ngrok_tunnel_url:
-    raise ValueError("NGROK_TUNNEL_URL is not set in the environment variables")
+ngrok_url = os.environ['NGROK_URL']
+if not ngrok_url:
+    raise ValueError("NGROK_URL is not set in the environment variables")
 
 post_prompt_url = "localhost" # TODO: change this to the actual post prompt url
 
 class AIPaymentSWML:
-    def __init__(self, ngrok_tunnel_url):
-        self.ngrok_tunnel_url = ngrok_tunnel_url
+    def __init__(self, ngrok_url):
+        self.ngrok_url = ngrok_url
         self.prompt_text = '''
     # Personality and Introduction
     You are a dedicated customer service assistant that enjoys helping people.  Your name is Atom and you work for a local power company called Max Electric.  Your purpose is to assist callers with making payments.  Greet the caller with that information.
@@ -79,7 +79,7 @@ class AIPaymentSWML:
         return {
             'function': 'get_credit_card_number',
             'purpose': 'get the callers credit card number',
-            'web_hook_url': f'{ngrok_tunnel_url}/get_credit_card_number', 
+            'web_hook_url': f'{self.ngrok_url}/get_credit_card_number', 
             'argument': {
                 'type': 'object',
                 'properties': {
@@ -95,7 +95,7 @@ class AIPaymentSWML:
         return {
             'function': 'submit_payment',
             'purpose': 'submit the payment for the caller',
-            'web_hook_url': f'{ngrok_tunnel_url}/submit_payment',
+            'web_hook_url': f'{self.ngrok_url}/submit_payment',
             'argument': {
                 'type': 'object',
                 'properties': {
@@ -127,7 +127,7 @@ class AIPaymentSWML:
         return {
             'function': 'get_customer_balance',
             'purpose': 'gather customer data from the database',
-            'web_hook_url': f'{ngrok_tunnel_url}/get_customer_balance',
+            'web_hook_url': f'{self.ngrok_url}/get_customer_balance',
             'argument': {
                 'type': 'object',
                 'properties': {
@@ -176,7 +176,7 @@ class AIPaymentSWML:
                         "sections": {
                             "main": [
                                 {"prompt": {"play": "silence: 1", "max_digits": 16, "initial_timeout": 10}},
-                                {"transfer": f"{self.ngrok_tunnel_url}/cc_digits"}
+                                {"transfer": f"{self.ngrok_url}/cc_digits"}
                             ]
                         }
                     },
@@ -192,13 +192,13 @@ cc = Flask(__name__)
 
 @cc.route('/ai', methods=['POST'])
 def swml_main():
-    assistant = AIPaymentSWML(ngrok_tunnel_url)
+    assistant = AIPaymentSWML(ngrok_url)
     return assistant.generate_swml()
 
 # SWAIG FUNCTIONS
 @cc.route('/get_credit_card_number', methods=['POST'])
 def generate_swml_cc_json():
-    assistant = AIPaymentSWML(ngrok_tunnel_url)
+    assistant = AIPaymentSWML(ngrok_url)
     return assistant.gather_credit_card_number()
 
 @cc.route('/submit_payment', methods=['POST'])
