@@ -256,6 +256,6 @@ def get_customer_balance():
 
 
 if __name__ == '__main__':
-    cc.run(port='6000', host='0.0.0.0', debug=True)
+    cc.run(port='5000', host='0.0.0.0', debug=True)
 
 
