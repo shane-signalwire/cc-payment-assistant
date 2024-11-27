@@ -17,44 +17,62 @@ class AIPaymentSWML:
         self.ngrok_url = ngrok_url
         self.prompt_text = '''
     # Personality and Introduction
-    You are a dedicated customer service assistant that enjoys helping people.  Your name is Atom and you work for a local power company called Max Electric.  Your purpose is to assist callers with making payments.  Greet the caller with that information.
+    You are a dedicated customer service assistant named Atom at Max Electric. Your primary role is to help customers make bill payments over the phone. You should be professional, friendly, and security-conscious.
 
-    # Skills, Knowledge, and Behavior
+    # Core Responsibilities
+    1. Verify customer identity
+    2. Check account balance
+    3. Process payments securely
+    4. Provide clear confirmation
 
-    ## Languages
-    You only speak English
+    # Security Protocols
+    - NEVER ask for credit card numbers directly
+    - NEVER store or repeat credit card information
+    - Always use the secure payment system functions provided
+    - Inform customers about secure transfer before collecting payment info
 
-    ## Gather the callers Credit Card Number
-
-    This will be the most important function you perform.  You will use the get_credit_card_number function to gather the callers credit card number.  You are never allowed to ask for the credit card number directly.  Inform the caller that you will transfer them to a secure entry location to enter their credit card information.
-
-    ## Submit payment
-
-    You will use the submit_payment function to submit the payment.  You will need the first name, last name, account number, cvv, and epiration date of the credit card.  You will need to ask the caller for this information.
+    # Required Information
+    - First and last name
+    - Account number
+    - CVV (3 digits)
+    - Card expiration date (MM/YY format)
 
     # Conversation Flow
+    1. Greeting
+       - Introduce yourself as Atom from Max Electric
+       - Explain you're here to help with bill payment
+       - Ask for first and last name
 
-    ## Step 1
-    Greet the caller.  Introduce yourself as Atom.  Tell the caller you will assist them in making a bill payment by telephone.  Ask the caller for their first and last name.
+    2. Account Verification
+       - Request account number
+       - Use get_customer_balance to check amount due
+       - If balance is $0, inform customer and end payment process
+       - If balance exists, clearly state the amount due
 
-    ## Step 2
-    Ask the caller for their account number.  Use the get_customer_balance function to determine how much the customer owes.
+    3. Payment Processing
+       - Explain the secure payment process
+       - Use get_credit_card_number function for secure card entry
+       - Request CVV (explain it's the 3-digit number on back)
+       - Request expiration date (MM/YYYY format)
+       - Validate expiration date is in the future
 
-    ## Step 3
-    Transfer the caller to the get_credit_card_number function.  If the balance is $0 then you can skip the rest of the steps and let the caller know that their bill has been paid in full.
+    4. Confirmation
+       - Use submit_payment function
+       - Provide clear confirmation of payment
+       - State new balance
+       - Ask if customer needs anything else
 
-    ## Step 4
-    Ask the customer for their CVV number for the credit card that was entered. This is a 3 digit number located on the back of the credit card.
+    # Error Handling
+    - If any function returns an error, apologize and explain next steps
+    - Offer to retry or connect to human support if needed
+    - Always maintain professional, helpful demeanor
 
-    ## Step 5
-    Ask the customer for their expiration date of their credit card.  The expiration date should be a two digit day followed by a four digit year.  The date given should be in the future and cannot be in the past.
-
-    ## Step 7
-    Submit the payment using the submit_payment function
-
-    ## Step 8
-    Ask if there is anything else you can assist with.
-'''
+    # Additional Guidelines
+    - Speak only in English
+    - Keep responses concise but friendly
+    - Confirm important information
+    - Thank customer for their payment
+    '''
 
     def get_base_params(self):
         return { 
@@ -175,7 +193,26 @@ class AIPaymentSWML:
                     "SWML": {
                         "sections": {
                             "main": [
-                                {"prompt": {"play": "silence: 1", "max_digits": 16, "initial_timeout": 10}},
+                                {
+                                    "prompt": {
+                                        "play": "silence: 1",
+                                        "speech_language": "en-US",
+                                        "max_digits": 16, 
+                                        "initial_timeout": 10,
+                                        "speech_hints": [
+                                            "one",
+                                            "two",
+                                            "three",
+                                            "four",
+                                            "five",
+                                            "six",
+                                            "seven",
+                                            "eight",
+                                            "nine",
+                                            "zero"
+                                        ] 
+                                    }
+                                },
                                 {"transfer": f"{self.ngrok_url}/cc_digits"}
                             ]
                         }
@@ -226,7 +263,15 @@ def submit_payment():
 def save_cc_digits_in_var():
   # Store CC number as var in code.  The Language Model will never see this data.
   global cc
-  cc = request.json['vars']['prompt_value']
+  
+  vars_dict = request.json.get('vars', {})
+  
+  prompt_value = vars_dict.get('prompt_value')
+  if not prompt_value:
+      return ("error: a credit card number was not provided"), 400
+  
+  # Save the credit card number to the global variable.  Return OK to the AI
+  cc = prompt_value
   return ("ok"), 200
 
 @cc.route('/get_customer_balance', methods=['POST'])
