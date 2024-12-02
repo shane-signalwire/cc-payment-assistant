@@ -35,7 +35,7 @@ class AIPaymentSWML:
     - First and last name
     - Account number
     - CVV (3 digits)
-    - Card expiration date (MM/YYYY format)
+    - Card expiration date
 
     # Conversation Flow
     1. Greeting
@@ -51,9 +51,10 @@ class AIPaymentSWML:
 
     3. Payment Processing
        - Explain the secure payment process
-       - Use get_credit_card_number function for secure card entry
+       - ALWAYS Use get_credit_card_number function for secure card entry
+       - NEVER ask for credit card numbers directly
        - Request CVV (explain it's the 3-digit number on back)
-       - Request expiration date (MM/YYYY format)
+       - Request expiration date
        - Validate expiration date is in the future
 
     4. Confirmation
@@ -75,7 +76,7 @@ class AIPaymentSWML:
     '''
 
     def get_base_params(self):
-        return { 
+        return {
             'params': {
                 'confidence': 0.6,
                 'barge_confidence': 0.1,
@@ -92,12 +93,12 @@ class AIPaymentSWML:
             self._get_submit_payment_function(),
             self._get_customer_balance_function()
         ]
-    
+
     def _get_credit_card_number_function(self):
         return {
             'function': 'get_credit_card_number',
             'purpose': 'get the callers credit card number',
-            'web_hook_url': f'{self.ngrok_url}/get_credit_card_number', 
+            'web_hook_url': f'{self.ngrok_url}/get_credit_card_number',
             'argument': {
                 'type': 'object',
                 'properties': {
@@ -108,7 +109,7 @@ class AIPaymentSWML:
                 }
             }
         }
-    
+
     def _get_submit_payment_function(self):
         return {
             'function': 'submit_payment',
@@ -139,7 +140,7 @@ class AIPaymentSWML:
                     }
                 }
             }
-        }   
+        }
 
     def _get_customer_balance_function(self):
         return {
@@ -156,7 +157,7 @@ class AIPaymentSWML:
                 }
             }
         }
-    
+
     def generate_swml(self):
         swml = {
             'version': '1.0.0',
@@ -181,7 +182,7 @@ class AIPaymentSWML:
             }
         }
         return json.dumps(swml)
-    
+
     def gather_credit_card_number(self):
         # This SWML will transfer the caller outside of the LLM to gather the credit card number
         swml = {
@@ -197,7 +198,7 @@ class AIPaymentSWML:
                                     "prompt": {
                                         "play": "silence: 1",
                                         "speech_language": "en-US",
-                                        "max_digits": 16, 
+                                        "max_digits": 16,
                                         "initial_timeout": 10,
                                         "speech_hints": [
                                             "one",
@@ -210,7 +211,7 @@ class AIPaymentSWML:
                                             "eight",
                                             "nine",
                                             "zero"
-                                        ] 
+                                        ]
                                     }
                                 },
                                 {"transfer": f"{self.ngrok_url}/cc_digits"}
@@ -222,6 +223,7 @@ class AIPaymentSWML:
             ],
             'response': "Success. The user has entered their credit card."
         }
+        print (f"\n{swml}\n")
         return json.dumps(swml)
 
 
@@ -243,10 +245,10 @@ def submit_payment():
     swml = {}
     if not cc:
         swml['response'] = "error: credit card number not found or not valid"
-    
+
     else:
         parsed_data = request.json.get('argument', {}).get('parsed', [{}])[0]
-        
+
         first_name = parsed_data.get('first_name', '')
         last_name = parsed_data.get('last_name', '')
         account_number = parsed_data.get('account_number', '')
@@ -256,20 +258,20 @@ def submit_payment():
         print ( f"Processing payment for {first_name} {last_name}:\nAcct No. {account_number}\n Credit Card: {cc}\n CVV: {cvv}\n EXP: {exp}\n"  )
 
         swml['response'] = "success"
-    
+
     return json.dumps(swml)
 
 @cc.route('/cc_digits', methods=['POST'])
 def save_cc_digits_in_var():
   # Store CC number as var in code.  The Language Model will never see this data.
   global cc
-  
+  print ("\nStoring Credit card in a Variable inside the code and sending back to the AI Agent\n")
   vars_dict = request.json.get('vars', {})
-  
+
   prompt_value = vars_dict.get('prompt_value')
   if not prompt_value:
       return ("error: a credit card number was not provided"), 400
-  
+
   # Save the credit card number to the global variable.  Return OK to the AI
   cc = prompt_value
   return ("ok"), 200
@@ -284,7 +286,7 @@ def get_customer_balance():
 
     parsed_data = request.json.get('argument', {}).get('parsed', [{}])[0]
     account_number = parsed_data.get('account_number', '')
-    
+
     rows = cursor.execute(
         "SELECT balance from customer where account_number = ?",
         (account_number,)
@@ -296,11 +298,9 @@ def get_customer_balance():
         for row in rows:
             balance = row['balance']
             swml['response'] = f"Your current balance is ${balance}."
-    
+
     return json.dumps(swml)
 
 
 if __name__ == '__main__':
     cc.run(port='5000', host='0.0.0.0', debug=True)
-
-
